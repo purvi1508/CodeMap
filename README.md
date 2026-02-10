@@ -8,10 +8,9 @@ CodeMap analyzes your codebase and automatically generates architecture diagrams
 
 ### v0.1.0 (Current)
 - [x] Basic code analysis
-- [x] Diagram generation
-
 
 ### v0.2.0 (Planned)
+- [ ] Diagram generation
 - [ ] AI pattern detection
 - [ ] Documentation generation
 - [ ] Multi-language support (JavaScript, Java, Go)
