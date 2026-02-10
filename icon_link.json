@@ -1,0 +1,16 @@
+{
+    "User":["https://cdn-icons-png.flaticon.com/512/709/709699.png","https://www.citypng.com/public/uploads/preview/hd-man-user-illustration-icon-transparent-png-701751694974843ybexneueic.png","https://www.iconpacks.net/icons/2/free-user-icon-3296-thumb.png"],
+    "Admin":["https://cdn-icons-png.flaticon.com/512/2304/2304226.png","https://cdn-icons-png.flaticon.com/512/17003/17003310.png","https://cdn-icons-png.flaticon.com/512/2304/2304226.png"],
+    "Device":["https://cdn-icons-png.flaticon.com/512/900/900794.png","https://cdn-icons-png.flaticon.com/512/2278/2278984.png","https://static.thenounproject.com/png/165980-200.png"],
+    "DNS":["https://cdn-icons-png.flaticon.com/512/2333/2333160.png","https://cdn-icons-png.flaticon.com/512/2333/2333476.png","https://cdn-icons-png.flaticon.com/512/4400/4400270.png"],
+    "Firewall":["https://icons.veryicon.com/png/o/miscellaneous/2022-complete-collection-of-alibaba-cloud/waf-web-application-firewall-2.png","https://icons.veryicon.com/png/o/miscellaneous/cloud-product-services/application-firewall.png","https://images.cdn-files-a.com/uploads/2593542/800_5d923b013205b.png"],
+    "LoadBalancer":["https://www.freeiconspng.com/uploads/load-balancer-icon-0.png","https://static.thenounproject.com/png/5418791-200.png","https://www.freeiconspng.com/thumbs/load-balancer-icon/load-balancer-icon-18.png"],
+    "Nginx":["https://img.icons8.com/color/512/nginx.png"],
+    "Nodejs":["https://cdn-icons-png.flaticon.com/512/919/919825.png"],
+    "PostgreSQ":["https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Postgresql_elephant.svg/960px-Postgresql_elephant.svg.png"],
+    "MySQL":["https://www.svgrepo.com/show/303251/mysql-logo.svg"],
+    "s3":["https://miro.medium.com/1*s7-EdK14TMmzbNJdcP3UPA.png"],
+    "Blob":["https://www.element61.be/sites/default/files/img_competences/Azure%2520Blob%2520Storage.png"],
+    "GCS":["https://www.cleo.com/sites/default/files/2023-12/google-cloud-storage-buckets-logo.png"],
+    "Redis":["https://images.icon-icons.com/2415/PNG/512/redis_original_wordmark_logo_icon_146369.png"]
+}
