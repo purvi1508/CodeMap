@@ -3,6 +3,7 @@ Function analyzer - analyzes functions and builds call graphs.
 """
 from typing import Dict, List, Set, Optional, Tuple
 from collections import defaultdict
+
 from .models import (
     FunctionInfo, ModuleInfo, AnalysisResult, 
     CallGraphEdge, NodeType

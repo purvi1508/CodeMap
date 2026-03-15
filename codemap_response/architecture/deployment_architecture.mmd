@@ -1,0 +1,70 @@
+graph TB
+
+  subgraph CLIENT_TIER [Client Tier]
+    Ext_ClientCLI[CLI Example Entrypoints\nPython process\nReplicas: developer local]
+  end
+
+  subgraph APP_TIER [Application Tier]
+    direction TB
+
+    subgraph AppHost [Application Host Boundary]
+      style AppHost stroke-dasharray: 5 5
+
+      APIFacadeProc[Public API Facade module\nPython process importing library\nScaling: per embedding app]
+
+      OrchestratorContainer[LLM Orchestration Core Service\nPython process or Docker container\nScaling: horizontal replicas via host or container orchestration]
+
+      REPLWorkerContainer[Execution Sandbox REPL Service\nPython process or Docker container\nScaling: horizontal, CPU bound]
+
+      PromptModuleProc[Prompt Construction Module\nIn process Python module\nScaling: shared per orchestrator instance]
+
+      ParserModuleProc[Parser and Finalization Module\nIn process Python module\nScaling: shared per orchestrator instance]
+
+      TypesModuleProc[Types and DTO Module\nIn process Python module\nScaling: shared per orchestrator instance]
+    end
+  end
+
+  subgraph DATA_TIER [Data Tier]
+    style DATA_TIER stroke-dasharray: 5 5
+    EnvSecrets[Environment Variables and Dotenv Files\nHost file system and env\nNo replication]
+  end
+
+  subgraph EXTERNAL [External Services]
+    style EXTERNAL stroke-dasharray: 5 5
+    LiteLLMProc[litellm Library Facade\nPython package in orchestrator process]
+    LLMProviderCloud[LLM Provider APIs\nCloud HTTP endpoints\nScaling: provider managed]
+  end
+
+  %% Client to API facade
+  Ext_ClientCLI -->|in process function call: Python import rlm RLM.complete or acomplete| APIFacadeProc
+
+  %% API facade to orchestrator core
+  APIFacadeProc -->|function call: RLM.complete RLM.acomplete on core implementation| OrchestratorContainer
+
+  %% Orchestrator to REPL sandbox
+  OrchestratorContainer -->|function call or IPC: RLM.core_acomplete -> REPLExecutor.execute\nlocal call or over process boundary| REPLWorkerContainer
+
+  %% Orchestrator to prompt and parser modules
+  OrchestratorContainer -->|in process import and function calls: build_system_prompt| PromptModuleProc
+  OrchestratorContainer -->|in process import and function calls: parse_response is_final| ParserModuleProc
+  OrchestratorContainer -->|TypedDict usage: Message RLMConfig REPLEnvironment CompletionResult| TypesModuleProc
+
+  %% Orchestrator to litellm and external providers
+  OrchestratorContainer -->|Python function call: litellm.acompletion| LiteLLMProc
+  LiteLLMProc -->|HTTPS 443: JSON LLM completion requests| LLMProviderCloud
+
+  %% Setup utility and environment
+  Ext_ClientCLI -->|runs setup utility script using Python process| EnvSecrets
+  EnvSecrets -->|process startup: os.getenv load_dotenv to configure api_key api_base model| OrchestratorContainer
+
+  %% Class definitions
+  classDef process fill:#cce5ff,stroke:#003366,stroke-width:1px;
+  classDef container fill:#4da3ff,stroke:#003366,stroke-width:1px;
+  classDef cloud fill:#d7bde2,stroke:#6c3483,stroke-width:1px;
+  classDef external fill:#ffdfba,stroke:#cc7a00,stroke-width:1px;
+
+  class Ext_ClientCLI,EnvSecrets external
+  class APIFacadeProc,PromptModuleProc,ParserModuleProc,TypesModuleProc process
+  class OrchestratorContainer,REPLWorkerContainer container
+  class LiteLLMProc process
+  class LLMProviderCloud cloud

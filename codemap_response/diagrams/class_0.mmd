@@ -1,0 +1,69 @@
+classDiagram
+    %% Class Diagram
+
+    class MockResponse {
+    }
+
+    class MockResponse {
+    }
+
+    class REPLError {
+    }
+
+    class REPLExecutor {
+        +execute(code: str, env: Dict[str, Any]) str
+        #_extract_code(text: str) str
+        #_build_globals(env: Dict[str, Any]) Dict[str, Any]
+    }
+
+    class RLMError {
+    }
+
+    class MaxIterationsError {
+    }
+
+    class MaxDepthError {
+    }
+
+    class RLM {
+        +complete(query: str = '', context: str = '', **kwargs: Any) str
+        +acomplete(query: str = '', context: str = '', **kwargs: Any) str *async*
+        #_call_llm(messages: List[Message], **kwargs: Any) str *async*
+        #_build_repl_env(query: str, context: str) Dict[str, Any]
+        #_make_recursive_fn() Any
+        +stats() Dict[str, int] *property*
+    }
+
+    class Message {
+        +role
+        +content
+    }
+
+    class RLMConfig {
+        +model
+        +recursive_model
+        +api_base
+        +api_key
+        +max_depth
+        +max_iterations
+        +temperature
+        +timeout
+    }
+
+    class REPLEnvironment {
+        +context
+        +query
+        +recursive_llm
+        +re
+    }
+
+    class CompletionResult {
+        +answer
+        +iterations
+        +depth
+        +llm_calls
+    }
+
+    %% Relationships
+    RLMError <|-- MaxIterationsError
+    RLMError <|-- MaxDepthError

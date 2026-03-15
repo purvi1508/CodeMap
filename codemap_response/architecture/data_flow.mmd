@@ -1,0 +1,87 @@
+sequenceDiagram
+  participant CLI as CLI
+  participant PAF as PublicAPI
+  participant CORE as Core
+  participant PROMPT as Prompts
+  participant PARSER as Parser
+  participant REPL as REPL
+  participant LIT as litellm
+  participant LLM as LLMProvider
+
+  CLI ->> PAF: RLM.complete
+  activate PAF
+  PAF ->> CORE: RLM.complete facade -> RLM.acomplete
+  deactivate PAF
+  activate CORE
+
+  CORE ->> PROMPT: build_system_prompt
+  activate PROMPT
+  PROMPT -->> CORE: system_prompt
+  deactivate PROMPT
+
+  Note over CORE: Construct initial messages using Message and RLMConfig
+
+  CORE ->> LIT: litellm.acompletion
+  activate LIT
+  LIT ->> LLM: HTTPS completion request
+  activate LLM
+  LLM -->> LIT: HTTP response with completion payload
+  deactivate LLM
+  LIT -->> CORE: extracted content string
+  deactivate LIT
+
+  CORE ->> PARSER: parse_response
+  activate PARSER
+  PARSER -->> CORE: { final_answer: optional, is_final: bool }
+  deactivate PARSER
+
+  alt Response indicates final answer
+    CORE -->> PAF: final_answer string
+    PAF -->> CLI: final_answer string
+  else Response requires REPL iteration
+    Note over CORE: Prepare REPLEnvironment with recursive_llm via _build_repl_env
+
+    CORE ->> REPL: REPLExecutor.execute
+    activate REPL
+    REPL ->> REPL: _extract_code and _build_globals
+
+    alt REPL execution succeeds
+      REPL -->> CORE: result string
+
+      CORE ->> PARSER: parse_response
+      activate PARSER
+      PARSER -->> CORE: { final_answer, is_final }
+      deactivate PARSER
+
+      alt Now final
+        CORE -->> PAF: final_answer string
+        PAF -->> CLI: final_answer string
+      else Still not final and limits not reached
+        Note over CORE: Loop additional LLM and REPL calls until is_final or limits
+        CORE ->> LIT: litellm.acompletion for next step
+        activate LIT
+        LIT ->> LLM: HTTPS completion request
+        activate LLM
+        LLM -->> LIT: HTTP response
+        deactivate LLM
+        LIT -->> CORE: content string
+        deactivate LIT
+        CORE ->> PARSER: parse_response
+        activate PARSER
+        PARSER -->> CORE: { final_answer, is_final }
+        deactivate PARSER
+        CORE -->> PAF: final_answer or error depending on state
+        PAF -->> CLI: final_answer or error
+      end
+    else REPL execution fails
+      REPL -->> CORE: raise REPLError
+      CORE -->> PAF: propagate REPLError
+      PAF -->> CLI: REPLError exception
+    end
+    deactivate REPL
+  end
+
+  opt Depth or iteration limits exceeded during recursion
+    CORE -->> PAF: MaxDepthError or MaxIterationsError
+    PAF -->> CLI: domain error exception
+  end

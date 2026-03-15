@@ -1,0 +1,305 @@
+{
+  "system_name": "Recursive LLM Orchestrator",
+  "system_description": "A small orchestration layer around an LLM backend that provides recursive prompting, a restricted Python REPL execution environment, and a facade-style API for synchronous and asynchronous completions with depth/iteration control.",
+  "tech_stack": [
+    "Python",
+    "TypedDict-based DTOs",
+    "Async I/O"
+  ],
+  "external_dependencies": [
+    "litellm (LLM backend abstraction)",
+    "Underlying LLM providers used via litellm (e.g., OpenAI, Ollama, local models)"
+  ],
+  "services": [
+    {
+      "name": "Public API Facade",
+      "type": "gateway",
+      "responsibility": "Provide a simplified, stable public entrypoint to the orchestration core, re-exporting the main RLM facade and error types as the library surface.",
+      "components": [
+        "__init__",
+        "RLM",
+        "RLMError",
+        "MaxIterationsError",
+        "MaxDepthError",
+        "REPLError"
+      ],
+      "technology": "Python package root acting as a facade over internal modules.",
+      "exposed_api": [
+        "RLM.__init__",
+        "RLM.complete",
+        "RLM.acomplete",
+        "RLM.stats",
+        "RLMError",
+        "MaxIterationsError",
+        "MaxDepthError",
+        "REPLError"
+      ],
+      "scalability_notes": "Scales primarily with number of consumers; stateless aside from in-process stats, so multiple instances can be run behind a higher-level API or service boundary.",
+      "failure_modes": "Propagation of domain errors (RLMError subclasses, REPLError) to callers; any unhandled exceptions from core orchestration or REPL are surfaced through this layer."
+    },
+    {
+      "name": "LLM Orchestration Core",
+      "type": "internal",
+      "responsibility": "Coordinate prompt construction, LLM calls, recursion, REPL environment preparation, iteration/depth limiting, and final answer extraction; act as the main domain service implementing the recursive LLM behavior.",
+      "components": [
+        "core",
+        "RLM",
+        "RLMError",
+        "MaxIterationsError",
+        "MaxDepthError",
+        "MockResponse"
+      ],
+      "technology": "Python async orchestration, layered over an LLM client (litellm) and helper modules (prompts, parser, repl, types).",
+      "exposed_api": [
+        "RLM.__init__",
+        "RLM.complete",
+        "RLM.acomplete",
+        "RLM._call_llm",
+        "RLM._build_repl_env",
+        "RLM._make_recursive_fn",
+        "RLM.stats"
+      ],
+      "scalability_notes": "Throughput constrained by external LLM latency and REPL execution cost. Horizontal scaling is straightforward by running multiple orchestrator instances, but stateful stats may need centralization if used across instances.",
+      "failure_modes": "MaxIterationsError and MaxDepthError when recursion/iteration limits are hit; errors from LLM backend (via litellm) causing RLMError or generic exceptions; parser or REPL-induced errors surfacing as domain or runtime errors; fragile protocol issues if LLM output deviates from expected markers (FINAL/FINAL_VAR)."
+    },
+    {
+      "name": "Execution Sandbox / REPL Service",
+      "type": "worker",
+      "responsibility": "Provide a restricted Python REPL environment where LLM-generated code is extracted, globals prepared, and code executed safely, raising domain-specific errors on failure.",
+      "components": [
+        "repl",
+        "REPLError",
+        "REPLExecutor"
+      ],
+      "technology": "Python code execution using controlled globals and simple text-based code extraction.",
+      "exposed_api": [
+        "REPLExecutor.__init__",
+        "REPLExecutor.execute",
+        "REPLExecutor._extract_code",
+        "REPLExecutor._build_globals"
+      ],
+      "scalability_notes": "CPU-bound execution; can be scaled horizontally or isolated in separate processes/containers for security. Workload is typically short-lived evaluations driven by the orchestration core.",
+      "failure_modes": "REPLError on execution failures or security violations; potential runtime exceptions if code extraction or environment building is incorrect; risk of runaway or unsafe code if sandboxing is insufficient."
+    },
+    {
+      "name": "Prompt Construction Service",
+      "type": "internal",
+      "responsibility": "Build system and user prompts that encode the DSL, recursion protocol, and usage of the REPL environment for the LLM.",
+      "components": [
+        "prompts"
+      ],
+      "technology": "Pure Python text templating and prompt assembly.",
+      "exposed_api": [
+        "build_system_prompt"
+      ],
+      "scalability_notes": "Very lightweight, CPU-trivial; remains in-process and scales naturally with the orchestration core.",
+      "failure_modes": "Malformed or inconsistent prompts leading to degraded LLM behavior, incorrect use of FINAL/FINAL_VAR markers, or poor adherence to REPL and recursion instructions."
+    },
+    {
+      "name": "Response Parsing & Finalization Service",
+      "type": "internal",
+      "responsibility": "Parse raw LLM responses, detect finalization commands (e.g., FINAL/FINAL_VAR markers), and determine if a response is final or needs further REPL-driven iteration.",
+      "components": [
+        "parser"
+      ],
+      "technology": "String parsing utilities to implement a simple embedded DSL for finalization commands in LLM output.",
+      "exposed_api": [
+        "parse_response",
+        "is_final"
+      ],
+      "scalability_notes": "Low-cost text processing; overhead negligible compared to LLM calls. Simple to run in-process alongside core orchestrator.",
+      "failure_modes": "Fragility to formatting variations, localization, or unexpected tokens from the LLM, which may cause incorrect detection of final answers or infinite/non-terminating iteration until limits are reached."
+    },
+    {
+      "name": "Types & Configuration DTO Service",
+      "type": "internal",
+      "responsibility": "Define shared data structures for messages, configuration, REPL environment, and completion results using TypedDicts to enforce structure across modules.",
+      "components": [
+        "types",
+        "Message",
+        "RLMConfig",
+        "REPLEnvironment",
+        "CompletionResult"
+      ],
+      "technology": "Python typing (TypedDict) and DTO-style structures.",
+      "exposed_api": [
+        "Message",
+        "RLMConfig",
+        "REPLEnvironment",
+        "CompletionResult"
+      ],
+      "scalability_notes": "Purely structural definitions; no runtime scalability concerns. Used across services to ensure consistent schemas.",
+      "failure_modes": "Schema drift between types and actual usage can cause runtime KeyError/TypeError or misinterpretation of fields if not validated at boundaries."
+    },
+    {
+      "name": "LLM Backend Client",
+      "type": "external",
+      "responsibility": "Provide the actual LLM completion capability used by the orchestration core, including streaming/async support and connectivity to multiple possible model providers.",
+      "components": [
+        "litellm (referenced implicitly by RLM._call_llm and tests using MockResponse)",
+        "MockResponse"
+      ],
+      "technology": "litellm Python library as a fa\u00e7ade over multiple LLM providers (e.g., OpenAI, Ollama, local llama.cpp).",
+      "exposed_api": [
+        "litellm.acompletion (or equivalent async completion interface used by RLM._call_llm)"
+      ],
+      "scalability_notes": "Scales according to upstream provider limits and network latency; heavy concurrency may require connection pooling, rate limiting, and backoff strategies.",
+      "failure_modes": "Network errors, provider timeouts, rate limits, and model-specific failures propagating back to RLM._call_llm; changes in provider APIs exposing tight coupling or feature envy as noted in the anti-patterns."
+    }
+  ],
+  "data_flows": [
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "Execution Sandbox / REPL Service",
+      "label": "RLM.core_acomplete -> REPLExecutor.execute (self_repl_execute)",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ code: str (LLM-produced Python), env: REPLEnvironment dict with query, context, recursive_llm, helpers }"
+    },
+    {
+      "from_service": "Execution Sandbox / REPL Service",
+      "to_service": "LLM Orchestration Core",
+      "label": "REPLExecutor.execute -> caller (return value to RLM.core_acomplete)",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "str (captured stdout or repr(last expression)); raises REPLError on failure"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "Prompt Construction Service",
+      "label": "RLM.core_acomplete -> prompts.build_system_prompt",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ context_size: int, depth: int } -> str (system prompt)"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "Response Parsing & Finalization Service",
+      "label": "RLM.core_acomplete -> parser.parse_response, parser.is_final",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ response: str (LLM output), env: REPLEnvironment dict } -> { final_answer: Optional[str], is_final: bool }"
+    },
+    {
+      "from_service": "Response Parsing & Finalization Service",
+      "to_service": "LLM Orchestration Core",
+      "label": "parser.parse_response, parser.is_final -> RLM.core_acomplete",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "parse_response: Optional[str] final answer; is_final: bool; may consult env for FINAL_VAR resolution"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "Execution Sandbox / REPL Service",
+      "label": "RLM.core___init__ -> REPLExecutor.__init__",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ timeout: Optional[float], max_output_chars: int } -> REPLExecutor instance"
+    },
+    {
+      "from_service": "Execution Sandbox / REPL Service",
+      "to_service": "Execution Sandbox / REPL Service",
+      "label": "REPLExecutor.execute -> _extract_code, _build_globals, exec/eval/compile_restricted_exec",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ text: str } -> code: str; { env: REPLEnvironment } -> globals: dict; executes arbitrary Python code with restricted globals"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "Types & Configuration DTO Service",
+      "label": "RLM._call_llm, acomplete use Message/RLMConfig/REPLEnvironment/CompletionResult",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "TypedDict structures for messages, config, env, and completion results passed between internal methods"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "LLM Backend Client",
+      "label": "RLM._call_llm -> litellm.acompletion",
+      "protocol": "HTTP",
+      "direction": "sync",
+      "data_shape": "{ api_key: str, api_base: Optional[str], model: str, messages: list[Message], **llm_kwargs } -> { response: provider-specific; extracted content: str }"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "LLM Orchestration Core",
+      "label": "RLM._build_repl_env -> RLM._make_recursive_fn",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "returns async recursive_llm(query/context/opts) closure injected into REPL env"
+    },
+    {
+      "from_service": "LLM Orchestration Core",
+      "to_service": "LLM Orchestration Core",
+      "label": "RLM._make_recursive_fn -> asyncio_run/ThreadPoolExecutor/RLM (sub_rlm_acomplete)",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "recursive_llm in REPL triggers further RLM.acomplete calls potentially on a thread pool"
+    },
+    {
+      "from_service": "Public API Facade",
+      "to_service": "LLM Orchestration Core",
+      "label": "RLM.complete/acomplete/stats facade -> core RLM implementation",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "{ query: Optional[str], context: Optional[str], **kwargs } -> str (final answer) / stats dict; propagates RLMError/MaxDepthError/MaxIterationsError/REPLError"
+    },
+    {
+      "from_service": "CLI / Example entrypoints",
+      "to_service": "Public API Facade",
+      "label": "example mains -> RLM.complete / RLM.acomplete",
+      "protocol": "function call",
+      "direction": "sync",
+      "data_shape": "high-level prompts, contexts, model/config options; receives final answer strings, error signaling via exceptions"
+    },
+    {
+      "from_service": "Setup utility",
+      "to_service": "Environment / File System",
+      "label": "setup_env -> .env file via open/write",
+      "protocol": "file I/O",
+      "direction": "sync",
+      "data_shape": "writes API keys and config as KEY=VALUE lines; later read via load_dotenv/os.getenv in tests/examples"
+    }
+  ],
+  "recommendations": [
+    "Run the REPL execution sandbox (REPLExecutor) in a separate, heavily restricted process or container rather than in-process exec/eval. Use IPC (e.g., stdin/stdout over a subprocess or gRPC/HTTP to a sandbox service) with strict timeouts and resource limits to contain arbitrary code execution.",
+    "Harden the REPL global environment: whitelist only safe, deterministic functions and immutable data, avoid exposing file system, network, threading, or OS modules, and carefully vet any helpers injected via _build_repl_env (including recursive_llm). Consider immutable views for env where possible.",
+    "Enforce and test timeouts for REPLExecutor.execute and recursive LLM calls. If the current timeout is not implemented, add explicit enforcement via signal, multiprocessing with timeouts, or subprocess kill after a configured duration.",
+    "Strengthen recursion and iteration controls: ensure MaxDepthError and MaxIterationsError limits are applied to recursive_llm calls invoked from the REPL, including those running via ThreadPoolExecutor, and log when limits are hit to detect abuse or model misbehavior.",
+    "Introduce connection pooling, concurrency limits, and backoff/rate-limiting for _call_llm/litellm.acompletion. Centralize configuration (e.g., max concurrent LLM calls per instance and per API key) and surface friendly errors when limits are exceeded.",
+    "Add caching for deterministic LLM calls where appropriate (e.g., same model+messages+params within a short window) to reduce cost and latency for repeated prompts, particularly in recursive or exploratory strategies.",
+    "Refactor the synchronous facade (complete) to integrate with existing event loops gracefully (e.g., use asyncio.get_running_loop and create_task instead of always calling asyncio.run), or clearly document that async usage (acomplete) is preferred in high-throughput server environments.",
+    "Externalize and centralize stats collection through a metrics system (e.g., Prometheus, OpenTelemetry). Record per-call latency, token usage, recursion depth, REPL execution time, and error types to identify hot spots and guide capacity planning.",
+    "Treat API keys and sensitive configuration as secrets: avoid logging raw kwargs/env, mask api_key in debug logs, and ensure .env files created by setup_env have restrictive permissions (e.g., 0600 on POSIX). Document secure deployment practices.",
+    "Validate and sanitize user-supplied configuration and LLM parameters before passing them to litellm.acompletion. Enforce allowed ranges for temperature, max_tokens, and model, and avoid directly forwarding arbitrary user-provided kwargs.",
+    "Harden FINAL/FINAL_VAR parsing: explicitly control which env variables are visible for FINAL_VAR resolution, and ensure that it cannot be used to dump internal objects, secrets, or helper functions. Consider a dedicated result namespace separate from internal env.",
+    "Bound thread usage in ThreadPoolExecutor (e.g., max_workers) and consider using an async-friendly pattern (e.g., asyncio.to_thread with limiting, or pure-async recursion) to prevent uncontrolled thread growth under heavy recursive_llm usage.",
+    "Add guardrails on prompt size and recursion depth relative to model context limits; for very long documents or many iterations, chunk input and/or summarize aggressively rather than repeatedly sending the full context in each LLM call.",
+    "Document and test operational limits: maximum safe max_depth, max_iterations, max_output_chars, and typical per-request CPU and latency budgets, so integrators can size infrastructure and tune configuration predictably."
+  ],
+  "security_concerns": [
+    "REPLExecutor.execute uses exec and eval on LLM-generated code ('code' argument), even though globals are restricted; any sandbox escape or insufficiently filtered builtins/globals could allow arbitrary code execution. This is especially risky if queries/contexts are user-controlled.",
+    "compile_restricted_exec usage suggests a custom restriction mechanism; without strong guarantees (e.g., separate process, seccomp, OS-level sandbox), it should be treated as untrusted code execution in the orchestrator process.",
+    "RLM._make_recursive_fn exposes recursive_llm into the REPL env, enabling LLM-generated code to trigger further LLM calls; without rate limiting or depth/iteration enforcement at this boundary, an attacker could induce excessive external calls or resource exhaustion.",
+    "API keys and endpoints are handled via api_key/api_base parameters and .env files; if logs or stats include full kwargs or env contents, secrets may be accidentally logged or exposed. The .env creation utility (setup_env) writes secrets to disk and echoes prompts via stdout, so terminal history and file permissions must be managed carefully.",
+    "litellm.acompletion is called with kwargs popped from RLM._call_llm; if upstream parameters are taken directly from user input without validation, they could influence provider selection, prompt injection behaviors, or prompt logging features at the provider level.",
+    "The parser (parse_response, extract_final_var) inspects LLM output and accesses env by variable name; if env contains sensitive objects or callables not properly filtered, FINAL_VAR could be abused to introspect or stringify objects whose data should not be revealed.",
+    "setup_env interacts with the filesystem using Path/exists/open without explicit permission checks; running in shared environments could leak .env containing API keys to other users if default filesystem permissions are broad.",
+    "ThreadPoolExecutor usage in _make_recursive_fn to run recursive calls from within the REPL may share memory with the main process; any sandbox escape in REPL-executed code has full access to the orchestrator's memory and secrets."
+  ],
+  "scalability_bottlenecks": [
+    "RLM.complete is a synchronous wrapper over the async pipeline using asyncio.run, which blocks the calling thread per request; in multi-request environments (e.g., web servers) this can limit throughput unless only the async interface is used.",
+    "RLM.acomplete orchestrates multiple sequential LLM calls and REPL executions per user query; latency is dominated by external LLM round trips plus Python code execution, and there is no evidence of caching of prompts or intermediate results.",
+    "RLM._call_llm relies on litellm.acompletion for each step; high concurrency without connection pooling, client reuse, or explicit rate limiting can hit provider rate limits or saturate network resources.",
+    "The recursive_fn returned by _make_recursive_fn can trigger nested RLM.acomplete calls through recursive_llm; although MaxDepthError and MaxIterationsError exist, misconfiguration (high limits) or LLM misbehavior could lead to deep recursion and a large fan-out of LLM calls.",
+    "REPLExecutor.execute runs CPU-bound Python code, potentially including complex or long-running computations supplied by the LLM; a single slow or non-terminating code snippet can tie up a worker thread or event loop task, as timeout is documented but not actually enforced.",
+    "ThreadPoolExecutor in _make_recursive_fn is used to bridge async recursion from sync REPL code; unbounded thread pool or unchecked submission per recursive call can lead to large numbers of OS threads and context switching overhead.",
+    "All parsing and prompt-building operations are in-process and string-based; for very large contexts (long documents or many iterations), repeated string concatenation and regex parsing (in parse_response/extract_final) can add noticeable CPU and memory overhead.",
+    "Statistics (stats) are kept in-process; in horizontally scaled deployments each instance maintains its own stats, making system-wide analysis harder and introducing per-instance hot spots if metrics aggregation is attempted via external calls on each request."
+  ],
+  "diagrams": {
+    "application_architecture": "graph TB\n\n  subgraph PublicAPIFacade [Public API Facade - Public entrypoint facade over orchestration core]\n    PAF_Init[__init__]\n    PAF_RLM[RLM]\n    PAF_RLMError[RLMError]\n    PAF_MaxIterError[MaxIterationsError]\n    PAF_MaxDepthError[MaxDepthError]\n    PAF_REPLError[REPLError]\n  end\n\n  subgraph LLMOrchestrationCore [LLM Orchestration Core - Recursive LLM orchestration]\n    Core_Module[core]\n    Core_RLM[RLM]\n    Core_RLMError[RLMError]\n    Core_MaxIterError[MaxIterationsError]\n    Core_MaxDepthError[MaxDepthError]\n    Core_MockResponse[MockResponse]\n  end\n\n  subgraph ExecutionSandbox [Execution Sandbox REPL Service - Restricted Python execution]\n    REPL_Module[repl]\n    REPL_REPLError[REPLError]\n    REPL_Executor[REPLExecutor]\n  end\n\n  subgraph PromptService [Prompt Construction Service - Prompt templating and assembly]\n    Prompts_Module[prompts]\n  end\n\n  subgraph ParserService [Response Parsing and Finalization Service - LLM response DSL parsing]\n    Parser_Module[parser]\n  end\n\n  subgraph TypesService [Types and Configuration DTO Service - Shared TypedDict schemas]\n    Types_Module[types]\n    Types_Message[Message]\n    Types_RLMConfig[RLMConfig]\n    Types_REPLEnv[REPLEnvironment]\n    Types_CompletionResult[CompletionResult]\n  end\n\n  subgraph ExternalSystems [External Systems]\n    subgraph LLMBackend [LLM Backend Client - litellm facade over providers]\n      Ext_litellm[litellm]\n      Ext_MockResponse[MockResponse]\n    end\n    Ext_CLI[CLI Example Entrypoints]\n    Ext_SetupUtility[Setup utility]\n    Ext_EnvFS[Environment and File System]\n    Ext_Providers[LLM Providers]\n  end\n\n  %% Internal service interactions\n  PAF_RLM -->|function call: { query, context, kwargs } -> str or stats, errors| Core_RLM\n\n  Core_RLM -->|function call: RLM.core___init__ -> REPLExecutor.__init__\\n{ timeout, max_output_chars } -> REPLExecutor| REPL_Executor\n  Core_RLM -->|function call: RLM.core_acomplete -> REPLExecutor.execute\\n{ code: str, env: REPLEnvironment }| REPL_Executor\n  REPL_Executor -->|function return: str result or raises REPLError| Core_RLM\n\n  Core_RLM -->|function call: RLM.core_acomplete -> prompts.build_system_prompt\\n{ context_size: int, depth: int } -> str system prompt| Prompts_Module\n\n  Core_RLM -->|function call: RLM.core_acomplete -> parser.parse_response and parser.is_final\\n{ response: str, env: REPLEnvironment }| Parser_Module\n  Parser_Module -->|function return: { final_answer: Optional str, is_final: bool }| Core_RLM\n\n  REPL_Executor -->|function call: execute -> _extract_code\\n{text: str} -> code: str| REPL_Module\n  REPL_Executor -->|function call: execute -> _build_globals\\n{ env: REPLEnvironment } -> globals: dict| REPL_Module\n\n  Core_RLM -->|function use: Message RLMConfig REPLEnvironment CompletionResult\\nTypedDict DTOs across methods| Types_Module\n  Types_Module --> Types_Message\n  Types_Module --> Types_RLMConfig\n  Types_Module --> Types_REPLEnv\n  Types_Module --> Types_CompletionResult\n\n  Core_RLM -->|HTTP via litellm.acompletion: { api_key, api_base, model, messages, llm_kwargs }| Ext_litellm\n  Ext_litellm -->|HTTP: provider specific request and response| Ext_Providers\n\n  Core_RLM -->|function call: RLM._build_repl_env -> RLM._make_recursive_fn\\nreturns async recursive_llm closure for REPL env| Core_Module\n  Core_Module -->|function call: recursive_llm -> asyncio or ThreadPoolExecutor -> RLM.sub_acomplete\\ntriggers nested RLM.acomplete| Core_RLM\n\n  Ext_CLI -->|function call: example mains -> RLM.complete or RLM.acomplete\\nhigh level prompts and config| PAF_RLM\n\n  Ext_SetupUtility -->|file I O: setup_env -> write .env with KEY=VALUE lines| Ext_EnvFS\n\n  %% Class definitions\n  classDef internal fill:#cce5ff,stroke:#003366,stroke-width:1px;\n  classDef external fill:#ffdfba,stroke:#cc7a00,stroke-width:1px;\n  classDef datastore fill:#d5f5e3,stroke:#1e8449,stroke-width:1px;\n  classDef queue fill:#e8daef,stroke:#6c3483,stroke-width:1px;\n  classDef gateway fill:#b2f0f0,stroke:#008b8b,stroke-width:1px;\n\n  class PAF_Init,PAF_RLM,PAF_RLMError,PAF_MaxIterError,PAF_MaxDepthError,PAF_REPLError gateway\n  class Core_Module,Core_RLM,Core_RLMError,Core_MaxIterError,Core_MaxDepthError,Core_MockResponse internal\n  class REPL_Module,REPL_REPLError,REPL_Executor internal\n  class Prompts_Module internal\n  class Parser_Module internal\n  class Types_Module,Types_Message,Types_RLMConfig,Types_REPLEnv,Types_CompletionResult internal\n\n  class Ext_litellm,Ext_MockResponse,Ext_CLI,Ext_SetupUtility,Ext_EnvFS,Ext_Providers external\n",
+    "deployment_architecture": "graph TB\n\n  subgraph CLIENT_TIER [Client Tier]\n    Ext_ClientCLI[CLI Example Entrypoints\\nPython process\\nReplicas: developer local]\n  end\n\n  subgraph APP_TIER [Application Tier]\n    direction TB\n\n    subgraph AppHost [Application Host Boundary]\n      style AppHost stroke-dasharray: 5 5\n\n      APIFacadeProc[Public API Facade module\\nPython process importing library\\nScaling: per embedding app]\n\n      OrchestratorContainer[LLM Orchestration Core Service\\nPython process or Docker container\\nScaling: horizontal replicas via host or container orchestration]\n\n      REPLWorkerContainer[Execution Sandbox REPL Service\\nPython process or Docker container\\nScaling: horizontal, CPU bound]\n\n      PromptModuleProc[Prompt Construction Module\\nIn process Python module\\nScaling: shared per orchestrator instance]\n\n      ParserModuleProc[Parser and Finalization Module\\nIn process Python module\\nScaling: shared per orchestrator instance]\n\n      TypesModuleProc[Types and DTO Module\\nIn process Python module\\nScaling: shared per orchestrator instance]\n    end\n  end\n\n  subgraph DATA_TIER [Data Tier]\n    style DATA_TIER stroke-dasharray: 5 5\n    EnvSecrets[Environment Variables and Dotenv Files\\nHost file system and env\\nNo replication]\n  end\n\n  subgraph EXTERNAL [External Services]\n    style EXTERNAL stroke-dasharray: 5 5\n    LiteLLMProc[litellm Library Facade\\nPython package in orchestrator process]\n    LLMProviderCloud[LLM Provider APIs\\nCloud HTTP endpoints\\nScaling: provider managed]\n  end\n\n  %% Client to API facade\n  Ext_ClientCLI -->|in process function call: Python import rlm RLM.complete or acomplete| APIFacadeProc\n\n  %% API facade to orchestrator core\n  APIFacadeProc -->|function call: RLM.complete RLM.acomplete on core implementation| OrchestratorContainer\n\n  %% Orchestrator to REPL sandbox\n  OrchestratorContainer -->|function call or IPC: RLM.core_acomplete -> REPLExecutor.execute\\nlocal call or over process boundary| REPLWorkerContainer\n\n  %% Orchestrator to prompt and parser modules\n  OrchestratorContainer -->|in process import and function calls: build_system_prompt| PromptModuleProc\n  OrchestratorContainer -->|in process import and function calls: parse_response is_final| ParserModuleProc\n  OrchestratorContainer -->|TypedDict usage: Message RLMConfig REPLEnvironment CompletionResult| TypesModuleProc\n\n  %% Orchestrator to litellm and external providers\n  OrchestratorContainer -->|Python function call: litellm.acompletion| LiteLLMProc\n  LiteLLMProc -->|HTTPS 443: JSON LLM completion requests| LLMProviderCloud\n\n  %% Setup utility and environment\n  Ext_ClientCLI -->|runs setup utility script using Python process| EnvSecrets\n  EnvSecrets -->|process startup: os.getenv load_dotenv to configure api_key api_base model| OrchestratorContainer\n\n  %% Class definitions\n  classDef process fill:#cce5ff,stroke:#003366,stroke-width:1px;\n  classDef container fill:#4da3ff,stroke:#003366,stroke-width:1px;\n  classDef cloud fill:#d7bde2,stroke:#6c3483,stroke-width:1px;\n  classDef external fill:#ffdfba,stroke:#cc7a00,stroke-width:1px;\n\n  class Ext_ClientCLI,EnvSecrets external\n  class APIFacadeProc,PromptModuleProc,ParserModuleProc,TypesModuleProc process\n  class OrchestratorContainer,REPLWorkerContainer container\n  class LiteLLMProc process\n  class LLMProviderCloud cloud\n",
+    "data_flow": "sequenceDiagram\n  participant CLI as CLI\n  participant PAF as PublicAPI\n  participant CORE as Core\n  participant PROMPT as Prompts\n  participant PARSER as Parser\n  participant REPL as REPL\n  participant LIT as litellm\n  participant LLM as LLMProvider <<external>>\n\n  CLI ->> PAF: RLM.complete(query, context, config)\n  activate PAF\n  PAF ->> CORE: RLM.complete facade -> RLM.acomplete(query, context, config)\n  deactivate PAF\n  activate CORE\n\n  CORE ->> PROMPT: build_system_prompt(context_size, depth)\n  activate PROMPT\n  PROMPT -->> CORE: system_prompt\n  deactivate PROMPT\n\n  Note over CORE: Construct initial messages using Message and RLMConfig\n\n  CORE ->> LIT: litellm.acompletion(model, messages, api_key, api_base, llm_kwargs)\n  activate LIT\n  LIT ->> LLM: HTTPS completion request\n  activate LLM\n  LLM -->> LIT: HTTP response with completion payload\n  deactivate LLM\n  LIT -->> CORE: extracted content string\n  deactivate LIT\n\n  CORE ->> PARSER: parse_response(response, env)\n  activate PARSER\n  PARSER -->> CORE: { final_answer: optional, is_final: bool }\n  deactivate PARSER\n\n  alt Response indicates final answer\n    CORE -->> PAF: final_answer string\n    deactivate CORE\n    PAF -->> CLI: final_answer string\n  else Response requires REPL iteration\n    Note over CORE: Prepare REPLEnvironment with recursive_llm via _build_repl_env\n\n    CORE ->> REPL: REPLExecutor.execute(code, env)\n    activate REPL\n    REPL ->> REPL: _extract_code and _build_globals\n\n    alt REPL execution succeeds\n      REPL -->> CORE: result string\n      deactivate REPL\n\n      CORE ->> PARSER: parse_response(updated_response, env)\n      activate PARSER\n      PARSER -->> CORE: { final_answer, is_final }\n      deactivate PARSER\n\n      alt Now final\n        CORE -->> PAF: final_answer string\n        deactivate CORE\n        PAF -->> CLI: final_answer string\n      else Still not final and limits not reached\n        Note over CORE: Loop additional LLM and REPL calls until is_final or limits\n        CORE ->> LIT: litellm.acompletion for next step\n        activate LIT\n        LIT ->> LLM: HTTPS completion request\n        activate LLM\n        LLM -->> LIT: HTTP response\n        deactivate LLM\n        LIT -->> CORE: content string\n        deactivate LIT\n        CORE ->> PARSER: parse_response(response, env)\n        activate PARSER\n        PARSER -->> CORE: { final_answer, is_final }\n        deactivate PARSER\n        CORE -->> PAF: final_answer or error depending on state\n        deactivate CORE\n        PAF -->> CLI: final_answer or error\n      end\n    else REPL execution fails\n      REPL -->> CORE: raise REPLError\n      deactivate REPL\n      CORE -->> PAF: propagate REPLError\n      deactivate CORE\n      PAF -->> CLI: REPLError exception\n    end\n  end\n\n  opt Depth or iteration limits exceeded during recursion\n    CORE -->> PAF: MaxDepthError or MaxIterationsError\n    deactivate CORE\n    PAF -->> CLI: domain error exception\n  end\n"
+  }
+}

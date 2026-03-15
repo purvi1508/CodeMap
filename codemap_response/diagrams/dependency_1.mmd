@@ -1,0 +1,18 @@
+flowchart TB
+    %% Module Dependencies
+
+    __init__[__init__]
+    core[core]
+    parser[parser]
+    prompts[prompts]
+    repl[repl]
+    types[types]
+
+    __init__ -..-> core
+    __init__ -..-> repl
+    core -..-> types
+    core -..-> repl
+    core -..-> prompts
+    core -..-> parser
+
+    %% Circular dependencies

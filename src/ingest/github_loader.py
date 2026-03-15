@@ -462,3 +462,5 @@ class GitHubLoader:
             return True
         except (subprocess.CalledProcessError, FileNotFoundError):
             return False
+        
+

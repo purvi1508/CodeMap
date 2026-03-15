@@ -1,0 +1,357 @@
+flowchart TB
+    %% Function Call Graph
+
+    MagicMock[MagicMock]
+    MaxDepthError[MaxDepthError]
+    MaxIterationsError[MaxIterationsError]
+    MockResponse[MockResponse]
+    Path[Path]
+    REPLError[REPLError]
+    REPLExecutor[REPLExecutor]
+    RLM[RLM]
+    any[any]
+    asyncio_gather[gather]
+    asyncio_get_running_loop[get_running_loop]
+    asyncio_run[run]
+    basic_usage_main[main]
+    captured_output_getvalue[getvalue]
+    chapters_append[append]
+    code_strip[strip]
+    compile_restricted_exec[compile_restricted_exec]
+    concurrent_futures_ThreadPoolExecutor[ThreadPoolExecutor]
+    core___init__[__init__]
+    core__build_repl_env[_build_repl_env]
+    core__call_llm[_call_llm]
+    core__make_recursive_fn[_make_recursive_fn]
+    core_acomplete[acomplete]
+    core_complete[complete]
+    custom_config_async_example[async_example]
+    custom_config_custom_params_example[custom_params_example]
+    custom_config_error_handling_example[error_handling_example]
+    custom_config_local_model_example[local_model_example]
+    custom_config_main[main]
+    custom_config_stats_example[stats_example]
+    data_extraction_main[main]
+    documents_items[items]
+    env_file_exists[exists]
+    eval[eval]
+    exec[exec]
+    executor_submit[submit]
+    f_write[write]
+    future_result[result]
+    hasattr[hasattr]
+    input[input]
+    io_StringIO[StringIO]
+    join[join]
+    kwargs_pop[pop]
+    len[len]
+    litellm_acompletion[acompletion]
+    load_dotenv[load_dotenv]
+    long_document_generate_long_document[generate_long_document]
+    long_document_main[main]
+    match_group[group]
+    messages_append[append]
+    multi_file_main[main]
+    ollama_local_main[main]
+    open[open]
+    os_getenv[getenv]
+    output_strip[strip]
+    parser_extract_final[extract_final]
+    parser_extract_final_var[extract_final_var]
+    parser_is_final[is_final]
+    parser_parse_response[parse_response]
+    patch[patch]
+    print[print]
+    prompts_build_system_prompt[build_system_prompt]
+    pytest_raises[raises]
+    range[range]
+    re_search[search]
+    recursive_llm[recursive_llm]
+    repl__build_globals[_build_globals]
+    repl__extract_code[_extract_code]
+    repl_execute[execute]
+    response_lower[lower]
+    restricted_globals_update[update]
+    rlm_acomplete[acomplete]
+    rlm_complete[complete]
+    safe_globals_copy[copy]
+    self__build_globals[_build_globals]
+    self__build_repl_env[_build_repl_env]
+    self__call_llm[_call_llm]
+    self__extract_code[_extract_code]
+    self__make_recursive_fn[_make_recursive_fn]
+    self_acomplete[acomplete]
+    self_repl_execute[execute]
+    setup_env_setup_env[setup_env]
+    setup_env_test_env[test_env]
+    split[split]
+    str[str]
+    strip[strip]
+    sub_rlm_acomplete[acomplete]
+    test_core___init__[__init__]
+    test_core_mock_litellm[mock_litellm]
+    test_core_test_api_base_and_key[test_api_base_and_key]
+    test_core_test_context_operations[test_context_operations]
+    test_core_test_final_var[test_final_var]
+    test_core_test_max_depth_error[test_max_depth_error]
+    test_core_test_max_iterations_error[test_max_iterations_error]
+    test_core_test_multi_step_complete[test_multi_step_complete]
+    test_core_test_repl_error_handling[test_repl_error_handling]
+    test_core_test_simple_complete[test_simple_complete]
+    test_core_test_stats[test_stats]
+    test_core_test_sync_complete[test_sync_complete]
+    test_core_test_two_models[test_two_models]
+    test_integration___init__[__init__]
+    test_integration_test_chunk_strategy[test_chunk_strategy]
+    test_integration_test_context_not_in_prompt[test_context_not_in_prompt]
+    test_integration_test_error_recovery[test_error_recovery]
+    test_integration_test_extraction_strategy[test_extraction_strategy]
+    test_integration_test_long_context[test_long_context]
+    test_integration_test_multiline_answer[test_multiline_answer]
+    test_integration_test_peek_strategy[test_peek_strategy]
+    test_integration_test_search_strategy[test_search_strategy]
+    test_parser_test_extract_final_double_quotes[test_extract_final_double_quotes]
+    test_parser_test_extract_final_not_found[test_extract_final_not_found]
+    test_parser_test_extract_final_single_quotes[test_extract_final_single_quotes]
+    test_parser_test_extract_final_triple_quotes[test_extract_final_triple_quotes]
+    test_parser_test_extract_final_var[test_extract_final_var]
+    test_parser_test_extract_final_var_missing_variable[test_extract_final_var_missing_variable]
+    test_parser_test_extract_final_var_not_found[test_extract_final_var_not_found]
+    test_parser_test_is_final[test_is_final]
+    test_parser_test_parse_response_final[test_parse_response_final]
+    test_parser_test_parse_response_final_var[test_parse_response_final_var]
+    test_parser_test_parse_response_none[test_parse_response_none]
+    test_repl_repl[repl]
+    test_repl_test_code_block_extraction[test_code_block_extraction]
+    test_repl_test_comprehension[test_comprehension]
+    test_repl_test_empty_code[test_empty_code]
+    test_repl_test_forbidden_import[test_forbidden_import]
+    test_repl_test_list_operations[test_list_operations]
+    test_repl_test_multiline_code[test_multiline_code]
+    test_repl_test_print_output[test_print_output]
+    test_repl_test_regex_operations[test_regex_operations]
+    test_repl_test_runtime_error[test_runtime_error]
+    test_repl_test_safe_builtins[test_safe_builtins]
+    test_repl_test_simple_expression[test_simple_expression]
+    test_repl_test_string_operations[test_string_operations]
+    test_repl_test_syntax_error[test_syntax_error]
+    text_find[find]
+    two_models_main[main]
+    zip[zip]
+
+    test_parser_test_extract_final_double_quotes --> parser_extract_final
+    test_parser_test_extract_final_single_quotes --> parser_extract_final
+    test_parser_test_extract_final_triple_quotes --> parser_extract_final
+    test_parser_test_extract_final_not_found --> parser_extract_final
+    test_parser_test_extract_final_var --> parser_extract_final_var
+    test_parser_test_extract_final_var_not_found --> parser_extract_final_var
+    test_parser_test_extract_final_var_missing_variable --> parser_extract_final_var
+    test_parser_test_is_final --> parser_is_final
+    test_parser_test_parse_response_final --> parser_parse_response
+    test_parser_test_parse_response_final_var --> parser_parse_response
+    test_parser_test_parse_response_none --> parser_parse_response
+    test_core_mock_litellm --> patch
+    test_core_test_simple_complete --> rlm_acomplete
+    test_core_test_simple_complete --> RLM
+    test_core_test_simple_complete --> MockResponse
+    test_core_test_multi_step_complete --> rlm_acomplete
+    test_core_test_multi_step_complete --> RLM
+    test_core_test_multi_step_complete --> MockResponse
+    test_core_test_max_iterations_error --> pytest_raises
+    test_core_test_max_iterations_error --> RLM
+    test_core_test_max_iterations_error --> rlm_acomplete
+    test_core_test_max_iterations_error --> MockResponse
+    test_core_test_max_depth_error --> pytest_raises
+    test_core_test_max_depth_error --> RLM
+    test_core_test_max_depth_error --> rlm_acomplete
+    test_core_test_final_var --> rlm_acomplete
+    test_core_test_final_var --> RLM
+    test_core_test_final_var --> MockResponse
+    test_core_test_repl_error_handling --> rlm_acomplete
+    test_core_test_repl_error_handling --> RLM
+    test_core_test_repl_error_handling --> MockResponse
+    test_core_test_context_operations --> rlm_acomplete
+    test_core_test_context_operations --> RLM
+    test_core_test_context_operations --> MockResponse
+    test_core_test_sync_complete --> patch
+    test_core_test_sync_complete --> RLM
+    test_core_test_sync_complete --> MockResponse
+    test_core_test_sync_complete --> rlm_complete
+    test_core_test_two_models --> rlm_acomplete
+    test_core_test_two_models --> RLM
+    test_core_test_two_models --> MockResponse
+    test_core_test_stats --> rlm_acomplete
+    test_core_test_stats --> RLM
+    test_core_test_stats --> MockResponse
+    test_core_test_api_base_and_key --> rlm_acomplete
+    test_core_test_api_base_and_key --> RLM
+    test_core_test_api_base_and_key --> MockResponse
+    test_core___init__ --> MagicMock
+    test_repl_repl --> REPLExecutor
+    test_repl_test_simple_expression --> repl_execute
+    test_repl_test_string_operations --> repl_execute
+    test_repl_test_regex_operations --> repl_execute
+    test_repl_test_print_output --> repl_execute
+    test_repl_test_multiline_code --> repl_execute
+    test_repl_test_code_block_extraction --> repl_execute
+    test_repl_test_list_operations --> repl_execute
+    test_repl_test_forbidden_import --> pytest_raises
+    test_repl_test_forbidden_import --> repl_execute
+    test_repl_test_safe_builtins --> repl_execute
+    test_repl_test_comprehension --> repl_execute
+    test_repl_test_empty_code --> repl_execute
+    test_repl_test_syntax_error --> pytest_raises
+    test_repl_test_syntax_error --> repl_execute
+    test_repl_test_runtime_error --> pytest_raises
+    test_repl_test_runtime_error --> repl_execute
+    test_integration_test_peek_strategy --> rlm_acomplete
+    test_integration_test_peek_strategy --> patch
+    test_integration_test_peek_strategy --> RLM
+    test_integration_test_peek_strategy --> MockResponse
+    test_integration_test_search_strategy --> rlm_acomplete
+    test_integration_test_search_strategy --> patch
+    test_integration_test_search_strategy --> RLM
+    test_integration_test_search_strategy --> MockResponse
+    test_integration_test_chunk_strategy --> rlm_acomplete
+    test_integration_test_chunk_strategy --> patch
+    test_integration_test_chunk_strategy --> RLM
+    test_integration_test_chunk_strategy --> MockResponse
+    test_integration_test_extraction_strategy --> rlm_acomplete
+    test_integration_test_extraction_strategy --> patch
+    test_integration_test_extraction_strategy --> RLM
+    test_integration_test_extraction_strategy --> MockResponse
+    test_integration_test_error_recovery --> rlm_acomplete
+    test_integration_test_error_recovery --> patch
+    test_integration_test_error_recovery --> RLM
+    test_integration_test_error_recovery --> MockResponse
+    test_integration_test_long_context --> rlm_acomplete
+    test_integration_test_long_context --> patch
+    test_integration_test_long_context --> RLM
+    test_integration_test_long_context --> MockResponse
+    test_integration_test_multiline_answer --> rlm_acomplete
+    test_integration_test_multiline_answer --> patch
+    test_integration_test_multiline_answer --> RLM
+    test_integration_test_multiline_answer --> MockResponse
+    test_integration_test_context_not_in_prompt --> rlm_acomplete
+    test_integration_test_context_not_in_prompt --> patch
+    test_integration_test_context_not_in_prompt --> RLM
+    test_integration_test_context_not_in_prompt --> MockResponse
+    test_integration___init__ --> MagicMock
+    basic_usage_main --> print
+    basic_usage_main --> RLM
+    basic_usage_main --> rlm_complete
+    basic_usage_main --> len
+    ollama_local_main --> print
+    ollama_local_main --> RLM
+    ollama_local_main --> rlm_complete
+    setup_env_setup_env --> open
+    setup_env_setup_env --> print
+    setup_env_setup_env --> Path
+    setup_env_setup_env --> env_file_exists
+    setup_env_setup_env --> f_write
+    setup_env_setup_env --> input
+    setup_env_setup_env --> response_lower
+    setup_env_setup_env --> strip
+    setup_env_test_env --> print
+    setup_env_test_env --> load_dotenv
+    setup_env_test_env --> len
+    setup_env_test_env --> os_getenv
+    two_models_main --> print
+    two_models_main --> RLM
+    two_models_main --> rlm_complete
+    two_models_main --> len
+    multi_file_main --> documents_items
+    multi_file_main --> join
+    multi_file_main --> print
+    multi_file_main --> rlm_complete
+    multi_file_main --> RLM
+    multi_file_main --> len
+    custom_config_async_example --> asyncio_gather
+    custom_config_async_example --> print
+    custom_config_async_example --> zip
+    custom_config_async_example --> rlm_acomplete
+    custom_config_async_example --> RLM
+    custom_config_custom_params_example --> print
+    custom_config_custom_params_example --> RLM
+    custom_config_custom_params_example --> rlm_complete
+    custom_config_local_model_example --> print
+    custom_config_local_model_example --> RLM
+    custom_config_local_model_example --> rlm_complete
+    custom_config_error_handling_example --> print
+    custom_config_error_handling_example --> RLM
+    custom_config_error_handling_example --> rlm_complete
+    custom_config_stats_example --> print
+    custom_config_stats_example --> RLM
+    custom_config_stats_example --> rlm_complete
+    custom_config_main --> asyncio_run
+    custom_config_main --> custom_config_custom_params_example
+    custom_config_main --> custom_config_error_handling_example
+    custom_config_main --> custom_config_stats_example
+    custom_config_main --> custom_config_async_example
+    data_extraction_main --> print
+    data_extraction_main --> RLM
+    data_extraction_main --> rlm_complete
+    long_document_generate_long_document --> range
+    long_document_generate_long_document --> join
+    long_document_generate_long_document --> chapters_append
+    long_document_main --> print
+    long_document_main --> rlm_complete
+    long_document_main --> long_document_generate_long_document
+    long_document_main --> RLM
+    long_document_main --> len
+    repl_execute --> code_strip
+    repl_execute --> captured_output_getvalue
+    repl_execute --> REPLError
+    repl_execute --> len
+    repl_execute --> io_StringIO
+    repl_execute --> self__extract_code
+    repl_execute --> exec
+    repl_execute --> output_strip
+    repl_execute --> join
+    repl_execute --> any
+    repl_execute --> str
+    repl_execute --> compile_restricted_exec
+    repl_execute --> hasattr
+    repl_execute --> split
+    repl_execute --> strip
+    repl_execute --> eval
+    repl_execute --> self__build_globals
+    repl__extract_code --> strip
+    repl__extract_code --> text_find
+    repl__extract_code --> len
+    repl__build_globals --> safe_globals_copy
+    repl__build_globals --> restricted_globals_update
+    core___init__ --> REPLExecutor
+    core_complete --> asyncio_run
+    core_complete --> self_acomplete
+    core_acomplete --> self__call_llm
+    core_acomplete --> messages_append
+    core_acomplete --> MaxIterationsError
+    core_acomplete --> MaxDepthError
+    core_acomplete --> self__build_repl_env
+    core_acomplete --> range
+    core_acomplete --> prompts_build_system_prompt
+    core_acomplete --> self_repl_execute
+    core_acomplete --> parser_parse_response
+    core_acomplete --> str
+    core_acomplete --> parser_is_final
+    core_acomplete --> len
+    core__call_llm --> kwargs_pop
+    core__call_llm --> litellm_acompletion
+    core__build_repl_env --> self__make_recursive_fn
+    core__make_recursive_fn --> asyncio_run
+    core__make_recursive_fn --> recursive_llm
+    core__make_recursive_fn --> sub_rlm_acomplete
+    core__make_recursive_fn --> concurrent_futures_ThreadPoolExecutor
+    core__make_recursive_fn --> asyncio_get_running_loop
+    core__make_recursive_fn --> future_result
+    core__make_recursive_fn --> executor_submit
+    core__make_recursive_fn --> RLM
+    parser_extract_final --> re_search
+    parser_extract_final --> match_group
+    parser_extract_final --> strip
+    parser_extract_final_var --> re_search
+    parser_extract_final_var --> str
+    parser_extract_final_var --> match_group
+    parser_parse_response --> parser_extract_final_var
+    parser_parse_response --> parser_extract_final

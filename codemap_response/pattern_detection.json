@@ -1,0 +1,137 @@
+{
+  "design_patterns": [
+    {
+      "pattern_name": "Facade",
+      "pattern_type": "design_pattern",
+      "confidence": "medium",
+      "location": "__init__.py (exporting RLM and error types)",
+      "evidence": "__init__ re-exports RLM and several error classes from submodules, suggesting a simplified external interface over internal modules core, repl, types, prompts, parser.",
+      "suggestion": "Maintain the __init__ exports as the primary public API and keep internal modules cohesive and possibly private to preserve the facade boundary."
+    },
+    {
+      "pattern_name": "TypedDict-based DTOs",
+      "pattern_type": "design_pattern",
+      "confidence": "high",
+      "location": "types module (Message, RLMConfig, REPLEnvironment, CompletionResult)",
+      "evidence": "Multiple TypedDict subclasses (Message, RLMConfig, REPLEnvironment, CompletionResult) appear to model structured data passed between components, typical of Data Transfer Objects.",
+      "suggestion": "Keep these TypedDicts focused on data only and avoid embedding behavior to preserve their role as DTOs across module boundaries."
+    },
+    {
+      "pattern_name": "Interpreter-style REPL",
+      "pattern_type": "design_pattern",
+      "confidence": "medium",
+      "location": "repl.__init__, repl.execute, repl._extract_code, repl._build_globals",
+      "evidence": "There is a REPL executor object with methods to extract code, build restricted globals, and execute user-provided code in a controlled environment, effectively interpreting a small, constrained language (Python subset plus some injected functions).",
+      "suggestion": "Clarify the REPL\u2019s mini-language in documentation (allowed syntax, available globals, lifecycle of env) and consider formalizing it as an internal DSL with explicit command objects if more operations are added."
+    },
+    {
+      "pattern_name": "Strategy (LLM backend selection)",
+      "pattern_type": "design_pattern",
+      "confidence": "low",
+      "location": "RLM.__init__, RLM._call_llm, example mains (basic, Ollama, local_model_example, two models)",
+      "evidence": "RLM is initialized with a model string and optional recursive_model, and _call_llm centralizes the call to the LLM API; various main/example functions show running RLM with different models (remote, Ollama, local llama.cpp). This suggests pluggable strategies for how completions are obtained, but the strategy is currently configured via parameters rather than distinct strategy objects.",
+      "suggestion": "If multiple backends or call modes grow (e.g., streaming vs batch, different providers), introduce explicit strategy classes or callables encapsulating LLM invocation logic and inject them into RLM instead of relying purely on model strings and kwargs."
+    },
+    {
+      "pattern_name": "Template Method (high-level complete vs acomplete workflow)",
+      "pattern_type": "design_pattern",
+      "confidence": "medium",
+      "location": "RLM.complete, RLM.acomplete, RLM._build_repl_env, RLM._call_llm, prompt.build_system_prompt, prompt.build_user_prompt, parse_response.*",
+      "evidence": "The async acomplete appears to implement the main algorithm: build prompts, call LLM, possibly iterate the REPL, parse FINAL/FINAL_VAR, and enforce depth/iteration limits. The sync complete is a thin wrapper over acomplete. The workflow is fixed while some details (LLM parameters, query/context, recursive calls) are configured via parameters.",
+      "suggestion": "Keep the core flow centralized in one method; if further customization is required, expose hook methods for prompt building, environment building, or response parsing so subclasses can vary them without copying the entire algorithm."
+    },
+    {
+      "pattern_name": "Command-style finalization tokens",
+      "pattern_type": "design_pattern",
+      "confidence": "medium",
+      "location": "extract_final, extract_final_var, is_final, parse_response",
+      "evidence": "The system uses special directives like FINAL() and FINAL_VAR() in the LLM\u2019s output and then parses them with dedicated helper functions to extract the intended answer. These act as simple command markers that tell the host system when and how to finalize the computation.",
+      "suggestion": "Document the FINAL/FINAL_VAR protocol clearly for prompt authors and consider representing them as structured commands (e.g., JSON or a small grammar) if more directives are introduced."
+    },
+    {
+      "pattern_name": "Facade for LLM + REPL orchestration",
+      "pattern_type": "design_pattern",
+      "confidence": "high",
+      "location": "RLM.__init__, RLM.complete, RLM.acomplete, RLM.stats, RLM._build_repl_env, RLM._make_recursive_fn",
+      "evidence": "The RLM class presents a simple API (complete/acomplete, stats) while internally managing prompt construction, LLM interaction, recursive calls, REPL environment building, and iteration/depth constraints. Callers do not interact with the underlying litellm API or REPL details directly.",
+      "suggestion": "Maintain the RLM surface area small and cohesive; keep litellm-specific and REPL-specific logic hidden behind RLM to preserve the facade and make it easier to swap internal components."
+    }
+  ],
+  "anti_patterns": [
+    {
+      "pattern_name": "Potential God Class in RLM",
+      "pattern_type": "anti_pattern",
+      "confidence": "low",
+      "location": "core.RLM",
+      "evidence": "RLM owns configuration (via RLMConfig), LLM calling (_call_llm), REPL environment construction (_build_repl_env), recursion control (_make_recursive_fn, MaxDepthError, MaxIterationsError), and exposes completion APIs (complete, acomplete, stats). This concentration of responsibilities may indicate a central, multi-purpose class.",
+      "suggestion": "Review RLM responsibilities and consider extracting separate services (e.g., an LLMClient, a RecursionController, a REPLEnvironmentBuilder) if the implementation has grown large or complex."
+    },
+    {
+      "pattern_name": "Long Method / God Method risk in acomplete",
+      "pattern_type": "anti_pattern",
+      "confidence": "medium",
+      "location": "RLM.acomplete",
+      "evidence": "The docstring indicates that acomplete is the \"Main async complete method\" handling query/context interpretation, recursion, REPL iterations, LLM calls, and error handling for depth and iterations. Centralizing this many responsibilities into one method often leads to long, complex control flow over time.",
+      "suggestion": "Factor distinct responsibilities into helpers (e.g., _prepare_prompts, _run_repl_loop, _enforce_limits) and keep acomplete as a high-level coordinator for readability and testability."
+    },
+    {
+      "pattern_name": "Magic Strings / Protocol Embedded in Free-form Text",
+      "pattern_type": "anti_pattern",
+      "confidence": "high",
+      "location": "extract_final, extract_final_var, is_final, parse_response, LLM prompts",
+      "evidence": "The contract between the LLM and the host relies on specific markers like FINAL() and FINAL_VAR() embedded in natural language output. These are implicit string protocols with no schema, making them fragile to formatting changes, localization, or unexpected model behavior.",
+      "suggestion": "Move toward a more structured output format: for example, JSON with explicit fields, or at least a well-delimited mini-language with strict parsing and clear error handling when the directives are malformed or absent."
+    },
+    {
+      "pattern_name": "Weak Error/Limit Handling Surface",
+      "pattern_type": "anti_pattern",
+      "confidence": "low",
+      "location": "RLM.acomplete (MaxIterationsError, MaxDepthError), REPL.execute (REPLError)",
+      "evidence": "While specific exceptions are raised (MaxIterationsError, MaxDepthError, REPLError), there\u2019s no indication that callers receive structured diagnostic data (e.g., stats on partial progress, last LLM response, REPL history). Solely raising domain-specific exceptions can make observability and recovery difficult for integrators.",
+      "suggestion": "Augment exceptions or return types with structured metadata (iterations count, depth reached, partial outputs) so higher-level code can log, debug, or potentially recover from limit breaches."
+    },
+    {
+      "pattern_name": "Potential Feature Envy towards litellm",
+      "pattern_type": "anti_pattern",
+      "confidence": "low",
+      "location": "mock_litellm, RLM._call_llm, example_* functions",
+      "evidence": "The system appears tightly coupled to litellm\u2019s acompletion API and parameters, passing through **llm_kwargs and mocking litellm directly in tests. If RLM starts adapting its behavior frequently around litellm-specific details, this can lead to RLM excessively depending on external API specifics instead of an internal abstraction.",
+      "suggestion": "Introduce a narrow internal LLMClient interface that wraps litellm; have RLM depend on that interface rather than on litellm, and adjust mocks accordingly. This will reduce external coupling and prevent RLM from accumulating litellm-specific logic."
+    }
+  ],
+  "architectural_patterns": [
+    {
+      "pattern_name": "Layered / Modular Core with Public API Layer",
+      "pattern_type": "architectural",
+      "confidence": "medium",
+      "location": "Package root (__init__), core, repl, types, prompts, parser",
+      "evidence": "__init__ serves as a public API over underlying modules. core depends on types, repl, prompts, and parser but not vice versa, suggesting a central orchestration layer (core) over more focused utility or service-like modules.",
+      "suggestion": "Preserve this layering by preventing lower-level modules (e.g., parser, prompts, types, repl) from importing core, and document __init__ as the main entrypoint for consumers."
+    },
+    {
+      "pattern_name": "Pipeline-style Processing",
+      "pattern_type": "architectural",
+      "confidence": "low",
+      "location": "core module (RLM, REPLExecutor, parser, prompts)",
+      "evidence": "RLM appears to orchestrate a flow: build_system_prompt (prompts) \u2192 _call_llm \u2192 parse_response/is_final (parser) \u2192 REPLExecutor and REPL environment handling. This suggests a sequential transformation pipeline for LLM interaction and execution.",
+      "suggestion": "If the pipeline is explicit in code, consider formalizing it into distinct stages with clear interfaces to improve testability and make adding or reordering steps easier."
+    },
+    {
+      "pattern_name": "Layered / Facade-centric orchestration around LLM",
+      "pattern_type": "architectural",
+      "confidence": "high",
+      "location": "RLM class and associated helpers (prompt builders, REPL, response parsing) plus example main scripts",
+      "evidence": "The architecture centers on an RLM class as an orchestration layer over a lower-level LLM client (litellm) and an execution layer (REPL). Supporting functions build prompts and parse responses, while various main/example entry points show different ways to wire RLM to underlying models and environments. This is effectively a thin layered design with RLM as a facade/core service.",
+      "suggestion": "Preserve the separation: keep example/CLI code in a presentation layer, RLM as an application/service layer, and litellm/REPL as infrastructure. Make interfaces between these layers explicit to ease testing and future replacement of dependencies."
+    },
+    {
+      "pattern_name": "Embedded DSL for tool-calling via code execution",
+      "pattern_type": "architectural",
+      "confidence": "medium",
+      "location": "REPL executor, RLM._build_repl_env, RLM._make_recursive_fn, parse_response",
+      "evidence": "The system gives the LLM a restricted Python REPL with a special environment (context, query, recursive_llm, etc.), thereby creating an embedded DSL for tool orchestration and recursion. FINAL/FINAL_VAR act as control constructs on top of this DSL, making the overall system an LLM-driven program executor rather than simple text completion.",
+      "suggestion": "Treat the REPL plus directives as an internal DSL; document its semantics, version it if needed, and consider adding validation/sandboxing layers as the DSL grows more powerful."
+    }
+  ],
+  "summary": "The codebase implements an LLM orchestration layer (RLM) that exposes simple completion APIs while internally managing prompt construction, recursive calls, a restricted Python REPL for tool-like execution, and a lightweight protocol using FINAL/FINAL_VAR markers to signal final answers. RLM acts as a facade over litellm\u2019s completion API and a REPL executor, with helper functions for building prompts and parsing LLM responses, and several example scripts demonstrating usage with different backends (remote models, Ollama, local llama.cpp, multi-model scenarios). Architecturally, this forms a small layered system with a central service (RLM), infrastructure components (litellm client, REPL sandbox), and a bespoke DSL where the LLM emits code and finalization directives that the host parses and executes to produce structured results."
+}

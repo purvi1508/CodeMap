@@ -1,0 +1,99 @@
+graph TB
+
+  subgraph PublicAPIFacade [Public API Facade - Public entrypoint facade over orchestration core]
+    PAF_Init[__init__]
+    PAF_RLM[RLM]
+    PAF_RLMError[RLMError]
+    PAF_MaxIterError[MaxIterationsError]
+    PAF_MaxDepthError[MaxDepthError]
+    PAF_REPLError[REPLError]
+  end
+
+  subgraph LLMOrchestrationCore [LLM Orchestration Core - Recursive LLM orchestration]
+    Core_Module[core]
+    Core_RLM[RLM]
+    Core_RLMError[RLMError]
+    Core_MaxIterError[MaxIterationsError]
+    Core_MaxDepthError[MaxDepthError]
+    Core_MockResponse[MockResponse]
+  end
+
+  subgraph ExecutionSandbox [Execution Sandbox REPL Service - Restricted Python execution]
+    REPL_Module[repl]
+    REPL_REPLError[REPLError]
+    REPL_Executor[REPLExecutor]
+  end
+
+  subgraph PromptService [Prompt Construction Service - Prompt templating and assembly]
+    Prompts_Module[prompts]
+  end
+
+  subgraph ParserService [Response Parsing and Finalization Service - LLM response DSL parsing]
+    Parser_Module[parser]
+  end
+
+  subgraph TypesService [Types and Configuration DTO Service - Shared TypedDict schemas]
+    Types_Module[types]
+    Types_Message[Message]
+    Types_RLMConfig[RLMConfig]
+    Types_REPLEnv[REPLEnvironment]
+    Types_CompletionResult[CompletionResult]
+  end
+
+  subgraph ExternalSystems [External Systems]
+    subgraph LLMBackend [LLM Backend Client - litellm facade over providers]
+      Ext_litellm[litellm]
+      Ext_MockResponse[MockResponse]
+    end
+    Ext_CLI[CLI Example Entrypoints]
+    Ext_SetupUtility[Setup utility]
+    Ext_EnvFS[Environment and File System]
+    Ext_Providers[LLM Providers]
+  end
+
+  %% Internal service interactions
+  PAF_RLM -->|"function call: { query, context, kwargs } -> str or stats, errors"| Core_RLM
+
+  Core_RLM -->|"function call: RLM.core___init__ -> REPLExecutor.__init__\n{ timeout, max_output_chars } -> REPLExecutor"| REPL_Executor
+  Core_RLM -->|"function call: RLM.core_acomplete -> REPLExecutor.execute\n{ code: str, env: REPLEnvironment }"| REPL_Executor
+  REPL_Executor -->|"function return: str result or raises REPLError"| Core_RLM
+
+  Core_RLM -->|"function call: RLM.core_acomplete -> prompts.build_system_prompt\n{ context_size: int, depth: int } -> str system prompt"| Prompts_Module
+
+  Core_RLM -->|"function call: RLM.core_acomplete -> parser.parse_response and parser.is_final\n{ response: str, env: REPLEnvironment }"| Parser_Module
+  Parser_Module -->|"function return: { final_answer: Optional str, is_final: bool }"| Core_RLM
+
+  REPL_Executor -->|"function call: execute -> _extract_code\n{text: str} -> code: str"| REPL_Module
+  REPL_Executor -->|"function call: execute -> _build_globals\n{ env: REPLEnvironment } -> globals: dict"| REPL_Module
+
+  Core_RLM -->|"function use: Message RLMConfig REPLEnvironment CompletionResult\nTypedDict DTOs across methods"| Types_Module
+  Types_Module --> Types_Message
+  Types_Module --> Types_RLMConfig
+  Types_Module --> Types_REPLEnv
+  Types_Module --> Types_CompletionResult
+
+  Core_RLM -->|"HTTP via litellm.acompletion: { api_key, api_base, model, messages, llm_kwargs }"| Ext_litellm
+  Ext_litellm -->|"HTTP: provider specific request and response"| Ext_Providers
+
+  Core_RLM -->|"function call: RLM._build_repl_env -> RLM._make_recursive_fn\nreturns async recursive_llm closure for REPL env"| Core_Module
+  Core_Module -->|"function call: recursive_llm -> asyncio or ThreadPoolExecutor -> RLM.sub_acomplete\ntriggers nested RLM.acomplete"| Core_RLM
+
+  Ext_CLI -->|"function call: example mains -> RLM.complete or RLM.acomplete\nhigh level prompts and config"| PAF_RLM
+
+  Ext_SetupUtility -->|"file I O: setup_env -> write .env with KEY=VALUE lines"| Ext_EnvFS
+
+  %% Class definitions
+  classDef internal fill:#cce5ff,stroke:#003366,stroke-width:1px;
+  classDef external fill:#ffdfba,stroke:#cc7a00,stroke-width:1px;
+  classDef datastore fill:#d5f5e3,stroke:#1e8449,stroke-width:1px;
+  classDef queue fill:#e8daef,stroke:#6c3483,stroke-width:1px;
+  classDef gateway fill:#b2f0f0,stroke:#008b8b,stroke-width:1px;
+
+  class PAF_Init,PAF_RLM,PAF_RLMError,PAF_MaxIterError,PAF_MaxDepthError,PAF_REPLError gateway
+  class Core_Module,Core_RLM,Core_RLMError,Core_MaxIterError,Core_MaxDepthError,Core_MockResponse internal
+  class REPL_Module,REPL_REPLError,REPL_Executor internal
+  class Prompts_Module internal
+  class Parser_Module internal
+  class Types_Module,Types_Message,Types_RLMConfig,Types_REPLEnv,Types_CompletionResult internal
+
+  class Ext_litellm,Ext_MockResponse,Ext_CLI,Ext_SetupUtility,Ext_EnvFS,Ext_Providers external
