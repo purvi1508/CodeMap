@@ -36,12 +36,12 @@ Generates diagrams purely from the code's structure — no AI involved at this s
 
 Output: `diagrams/`
 
-### Step 4 — Function Summaries *(uses AI)*
+### Step 4 — Function Summaries 
 Sends domain functions to an LLM in batches of 10 to generate plain-English descriptions of what each function does.
 
 Output: `codemap/function_llm_summaries.json`
 
-### Step 5 — Pattern Detection *(uses AI · ~2 calls)*
+### Step 5 — Pattern Detection 
 Analyzes the codebase for:
 - **Design patterns** (e.g. factory, singleton)
 - **Anti-patterns** (e.g. god classes, circular deps)
@@ -49,7 +49,7 @@ Analyzes the codebase for:
 
 Output: `codemap/pattern_detection.json`
 
-### Step 6 — Architecture Analysis *(uses AI · ~3 calls)*
+### Step 6 — Architecture Analysis 
 Combines all prior outputs — code structure, function summaries, detected patterns, and structural diagrams — to produce a high-level architectural overview and recommendations.
 
 Output: `codemap/architecture/`
